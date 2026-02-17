@@ -255,6 +255,13 @@
             display: flex;
             align-items: center;
             overflow: visible;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .page-element.line.selected {
+            border: none !important;
+            box-shadow: none !important;
         }
 
         .resize-handle {
@@ -317,14 +324,14 @@
                     <input type="number" id="elementY" min="0" max="297" step="1" onchange="updateElement()">
                 </div>
 
-                <div class="property-group">
-                    <label for="elementWidth">Breite (mm):</label>
-                    <input type="number" id="elementWidth" min="1" max="210" step="1" onchange="updateElement()">
+                <div class="property-group" id="widthGroup">
+                    <label for="elementWidth" id="widthLabel">Breite (mm):</label>
+                    <input type="number" id="elementWidth" min="0" max="210" step="1" onchange="updateElement()">
                 </div>
 
                 <div class="property-group">
-                    <label for="elementHeight">Höhe (mm):</label>
-                    <input type="number" id="elementHeight" min="1" max="297" step="1" onchange="updateElement()">
+                    <label for="elementHeight" id="heightLabel">Höhe (mm):</label>
+                    <input type="number" id="elementHeight" min="0" max="297" step="1" onchange="updateElement()">
                 </div>
 
                 <div class="property-group">
@@ -342,7 +349,7 @@
                     <input type="number" id="fontSize" min="6" max="72" step="1" onchange="updateElement()" value="12">
                 </div>
 
-                <div class="property-group">
+                <div class="property-group" id="borderWidthGroup" style="display: none;">
                     <label for="borderWidth">Rahmenstärke (mm):</label>
                     <input type="number" id="borderWidth" min="0.1" max="10" step="0.1" onchange="updateElement()" value="0.5">
                 </div>
@@ -460,8 +467,7 @@
                 fontFamily: 'Arial',
                 bold: false,
                 italic: false,
-                underline: false,
-                borderWidth: 0.5
+                underline: false
             };
             elements.push(element);
             selectElement(id);
@@ -476,7 +482,7 @@
                 x: 10,
                 y: 10,
                 width: 80,
-                height: 0,
+                height: 80,
                 color: '#000000',
                 lineWidth: 0.5
            
@@ -541,28 +547,32 @@
                 } else if (element.type === 'line') {
                     // Nutze SVG für Linien
                     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                    svg.setAttribute('width', width);
-                    svg.setAttribute('height', Math.max(height, (element.lineWidth || 0.5) * MM_TO_PX * 2));
-                    svg.setAttribute('style', 'position: absolute; left: 0; top: 0;');
+                    const svgWidth = Math.abs(width) || 1;
+                    const svgHeight = Math.abs(height) || 1;
+                    
+                    svg.setAttribute('width', svgWidth);
+                    svg.setAttribute('height', svgHeight);
+                    svg.setAttribute('style', 'position: absolute; left: 0; top: 0; overflow: visible;');
+                    svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
                     
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', '0');
-                    line.setAttribute('y1', (element.lineWidth || 0.5) * MM_TO_PX);
-                    line.setAttribute('x2', width);
-                    line.setAttribute('y2', (element.lineWidth || 0.5) * MM_TO_PX);
+                    line.setAttribute('y1', '0');
+                    line.setAttribute('x2', svgWidth);
+                    line.setAttribute('y2', svgHeight);
                     line.setAttribute('stroke', element.color);
-                    line.setAttribute('stroke-width', (element.lineWidth || 0.5) * MM_TO_PX);
+                    line.setAttribute('stroke-width', Math.max(0.5, (element.lineWidth || 0.5) * MM_TO_PX));
+                    line.setAttribute('stroke-linecap', 'round');
                     
                     svg.appendChild(line);
                     div.appendChild(svg);
                     
+                    // Resize-Handle nur bei Auswahl anzeigen
                     if (selectedElement && selectedElement.id === element.id) {
-                        div.style.border = '2px dashed #3498db';
+                        const handle = document.createElement('div');
+                        handle.className = 'resize-handle';
+                        div.appendChild(handle);
                     }
-                    
-                    const handle = document.createElement('div');
-                    handle.className = 'resize-handle';
-                    div.appendChild(handle);
                 }
 
                 div.ondragstart = (e) => e.preventDefault();
@@ -593,7 +603,25 @@
                 document.getElementById('elementWidth').value = selectedElement.width;
                 document.getElementById('elementHeight').value = selectedElement.height;
                 document.getElementById('elementColor').value = selectedElement.color;
-                document.getElementById('borderWidth').value = selectedElement.borderWidth || 0.5;
+                
+                // Für Linien: Breite/Höhe sind Endpunkte, nicht Dimensionen
+                if (selectedElement.type === 'line') {
+                    document.getElementById('widthGroup').style.display = 'block';
+                    document.getElementById('widthLabel').textContent = 'Endpunkt X (mm):';
+                    document.getElementById('heightLabel').textContent = 'Endpunkt Y (mm):';
+                    document.getElementById('elementHeight').disabled = false;
+                } else {
+                    document.getElementById('widthGroup').style.display = 'block';
+                    document.getElementById('widthLabel').textContent = 'Breite (mm):';
+                    document.getElementById('heightLabel').textContent = 'Höhe (mm):';
+                    document.getElementById('elementHeight').disabled = false;
+                }
+                if (selectedElement.type === 'rectangle') {
+                    document.getElementById('borderWidthGroup').style.display = 'block';
+                    document.getElementById('borderWidth').value = selectedElement.borderWidth || 0.5;
+                } else {
+                    document.getElementById('borderWidthGroup').style.display = 'none';
+                }
 
                 if (selectedElement.type === 'text') {
                     document.getElementById('textPropertyGroup').style.display = 'block';
@@ -612,6 +640,10 @@
                     document.getElementById('fontSizeGroup').style.display = 'none';
                     document.getElementById('fontFamilyGroup').style.display = 'none';
                     document.getElementById('textStyleGroup').style.display = 'none';
+                    document.getElementById('borderWidthGroup').style.display = 'none';
+                    document.getElementById('widthGroup').style.display = 'block';
+                    document.getElementById('widthLabel').textContent = 'Endpunkt X (mm):';
+                    document.getElementById('heightLabel').textContent = 'Endpunkt Y (mm):';
                     document.getElementById('lineWidthGroup').style.display = 'block';
                     document.getElementById('lineWidth').value = selectedElement.lineWidth || 0.5;
                 } else {
@@ -619,6 +651,7 @@
                     document.getElementById('fontSizeGroup').style.display = 'none';
                     document.getElementById('fontFamilyGroup').style.display = 'none';
                     document.getElementById('textStyleGroup').style.display = 'none';
+                    document.getElementById('borderWidthGroup').style.display = 'none';
                     document.getElementById('lineWidthGroup').style.display = 'none';
                 }
             } else {
@@ -631,10 +664,24 @@
 
             selectedElement.x = parseFloat(document.getElementById('elementX').value);
             selectedElement.y = parseFloat(document.getElementById('elementY').value);
-            selectedElement.width = parseFloat(document.getElementById('elementWidth').value);
-            selectedElement.height = parseFloat(document.getElementById('elementHeight').value);
+            
+            // Für Linien: Width darf 0 sein, Height muss mind. 5 sein
+            if (selectedElement.type === 'line') {
+                selectedElement.width = Math.max(0, parseFloat(document.getElementById('elementWidth').value));
+                selectedElement.height = Math.max(0, parseFloat(document.getElementById('elementHeight').value));
+            } else if (selectedElement.type === 'rectangle') {
+                selectedElement.width = Math.max(, parseFloat(document.getElementById('elementWidth').value));
+                selectedElement.height = Math.max(5, parseFloat(document.getElementById('elementHeight').value));
+            } else if (selectedElement.type === 'text') {
+                selectedElement.width = Math.max(5, parseFloat(document.getElementById('elementWidth').value));
+                selectedElement.height = Math.max(5, parseFloat(document.getElementById('elementHeight').value));
+            }
             selectedElement.color = document.getElementById('elementColor').value;
-            selectedElement.borderWidth = parseFloat(document.getElementById('borderWidth').value);
+            
+            // BorderWidth nur für Rechtecke
+            if (selectedElement.type === 'rectangle') {
+                selectedElement.borderWidth = parseFloat(document.getElementById('borderWidth').value);
+            }
 
             if (selectedElement.type === 'text') {
                 selectedElement.text = document.getElementById('elementText').value;
@@ -645,6 +692,8 @@
                 selectedElement.underline = document.getElementById('textUnderline').checked;
             } else if (selectedElement.type === 'line') {
                 selectedElement.lineWidth = parseFloat(document.getElementById('lineWidth').value);
+            } else {
+                // Restore normal labels for non-line elements
             }
 
             renderCanvas();
@@ -670,19 +719,28 @@
             const startY = element.y;
             const startWidth = element.width;
             const startHeight = element.height;
+            const startBorderWidth = element.borderWidth || 0.5;
             const canvasRect = canvas.getBoundingClientRect();
             const startMouseX = e.clientX;
             const startMouseY = e.clientY;
+            let isChangingBorder = false;
 
-            // Check if resize handle
-            if (e.target.classList.contains('resize-handle')) {
+            // Check if Shift key is pressed (for border width adjustment)
+            if (e.shiftKey && element.type === 'rectangle') {
+                isChangingBorder = true;
+            } else if (e.target.classList.contains('resize-handle')) {
                 isResizing = true;
             } else {
                 isDragging = true;
             }
 
             document.onmousemove = (moveEvent) => {
-                if (isDragging) {
+                if (isChangingBorder) {
+                    const deltaX = moveEvent.clientX - startMouseX;
+                    element.borderWidth = Math.max(0.1, Math.min(10, startBorderWidth + deltaX / (MM_TO_PX * zoom * 50)));
+                    updatePropertiesPanel();
+                    renderCanvas();
+                } else if (isDragging) {
                     const deltaX = moveEvent.clientX - startMouseX;
                     const deltaY = moveEvent.clientY - startMouseY;
 
@@ -698,8 +756,8 @@
                     const deltaX = moveEvent.clientX - startMouseX;
                     const deltaY = moveEvent.clientY - startMouseY;
 
-                    element.width = Math.max(20, startWidth + deltaX / (MM_TO_PX * zoom));
-                    element.height = Math.max(20, startHeight + deltaY / (MM_TO_PX * zoom));
+                    element.width = Math.max(5, startWidth + deltaX / (MM_TO_PX * zoom));
+                    element.height = Math.max(5, startHeight + deltaY / (MM_TO_PX * zoom));
 
                     updatePropertiesPanel();
                     renderCanvas();
@@ -709,6 +767,7 @@
             document.onmouseup = () => {
                 isDragging = false;
                 isResizing = false;
+                isChangingBorder = false;
                 document.onmousemove = null;
                 document.onmouseup = null;
             };
