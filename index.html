@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jsPDF Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .toolbar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            width: 250px;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .toolbar h2 {
+            margin-bottom: 20px;
+            font-size: 18px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .toolbar h3 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #3498db;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button.danger {
+            background-color: #e74c3c;
+        }
+
+        button.danger:hover {
+            background-color: #c0392b;
+        }
+
+        button.success {
+            background-color: #27ae60;
+        }
+
+        button.success:hover {
+            background-color: #229954;
+        }
+
+        .properties {
+            display: none;
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .properties.active {
+            display: block;
+        }
+
+        .property-group {
+            margin-bottom: 12px;
+        }
+
+        .property-group label {
+            display: block;
+            font-size: 12px;
+            color: #2c3e50;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+
+        .property-group input,
+        .property-group select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #bdc3c7;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .property-group input[type="color"] {
+            height: 35px;
+            padding: 2px;
+            cursor: pointer;
+        }
+
+        .elements-list {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .element-item {
+            background-color: white;
+            padding: 8px;
+            margin-bottom: 6px;
+            border-left: 3px solid #3498db;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+
+        .element-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .element-item.selected {
+            background-color: #3498db;
+            color: white;
+            border-left-color: #2980b9;
+        }
+
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            flex: 1;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+            padding: 40px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        #canvas {
+            width: 794px;
+            height: 1123px;
+            background-color: white;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            cursor: crosshair;
+            flex-shrink: 0;
+        }
+
+        .zoom-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .zoom-bar label {
+            font-size: 12px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .zoom-bar input[type="range"] {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .zoom-value {
+            font-size: 12px;
+            color: #2c3e50;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .zoom-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .zoom-buttons button {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
+        .page-element {
+            position: absolute;
+            cursor: move;
+            border: 2px dashed transparent;
+            transition: all 0.1s;
+        }
+
+        .page-element.selected {
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .page-element.rectangle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .page-element.text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+        }
+
+        .page-element.line {
+            background-color: transparent;
+            display: flex;
+            align-items: center;
+            overflow: visible;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #3498db;
+            border: 1px solid white;
+            bottom: -4px;
+            right: -4px;
+            cursor: nwse-resize;
+            display: none;
+            z-index: 10;
+        }
+
+        .page-element.selected .resize-handle {
+            display: block;
+        }
+
+        .status-bar {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <h2>jsPDF Editor</h2>
+
+            <h3>Elemente hinzufügen</h3>
+            <div class="button-group">
+                <button onclick="addRectangle()">➕ Rechteck</button>
+                <button onclick="addText()">📝 Text</button>
+                <button onclick="addLine()">📏 Linie</button>
+            </div>
+
+            <h3>Eigenschaften</h3>
+            <div class="properties" id="properties">
+                <div class="property-group">
+                    <label for="elementType">Typ:</label>
+                    <select id="elementType" disabled>
+                        <option value="rectangle">Rechteck</option>
+                        <option value="text">Text</option>
+                        <option value="line">Linie</option>
+                    </select>
+                </div>
+
+                <div class="property-group">
+                    <label for="elementX">X (mm):</label>
+                    <input type="number" id="elementX" min="0" max="210" step="1" onchange="updateElement()">
+                </div>
+
+                <div class="property-group">
+                    <label for="elementY">Y (mm):</label>
+                    <input type="number" id="elementY" min="0" max="297" step="1" onchange="updateElement()">
+                </div>
+
+                <div class="property-group">
+                    <label for="elementWidth">Breite (mm):</label>
+                    <input type="number" id="elementWidth" min="1" max="210" step="1" onchange="updateElement()">
+                </div>
+
+                <div class="property-group">
+                    <label for="elementHeight">Höhe (mm):</label>
+                    <input type="number" id="elementHeight" min="1" max="297" step="1" onchange="updateElement()">
+                </div>
+
+                <div class="property-group">
+                    <label for="elementColor">Farbe:</label>
+                    <input type="color" id="elementColor" onchange="updateElement()">
+                </div>
+
+                <div class="property-group" id="textPropertyGroup" style="display: none;">
+                    <label for="elementText">Text:</label>
+                    <input type="text" id="elementText" onchange="updateElement()" placeholder="Text eingeben...">
+                </div>
+
+                <div class="property-group" id="fontSizeGroup" style="display: none;">
+                    <label for="fontSize">Schriftgröße (pt):</label>
+                    <input type="number" id="fontSize" min="6" max="72" step="1" onchange="updateElement()" value="12">
+                </div>
+
+                <div class="property-group">
+                    <label for="borderWidth">Rahmenstärke (mm):</label>
+                    <input type="number" id="borderWidth" min="0.1" max="10" step="0.1" onchange="updateElement()" value="0.5">
+                </div>
+
+                <div class="property-group" id="fontFamilyGroup" style="display: none;">
+                    <label for="fontFamily">Schriftart:</label>
+                    <select id="fontFamily" onchange="updateElement()">
+                        <option value="Arial">Arial</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Comic Sans MS">Comic Sans MS</option>
+                    </select>
+                </div>
+
+                <div class="property-group" id="lineWidthGroup" style="display: none;">
+                    <label for="lineWidth">Linienstärke (mm):</label>
+                    <input type="number" id="lineWidth" min="0.1" max="10" step="0.1" onchange="updateElement()" value="0.5">
+                </div>
+
+                <div class="property-group" id="textStyleGroup" style="display: none;">
+                    <label>Textstil:</label>
+                    <div style="display: flex; gap: 10px; margin-top: 8px;">
+                        <label style="display: flex; align-items: center; gap: 5px; font-weight: normal;">
+                            <input type="checkbox" id="textBold" onchange="updateElement()">
+                            <strong>Fett</strong>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; font-weight: normal;">
+                            <input type="checkbox" id="textItalic" onchange="updateElement()">
+                            <em>Kursiv</em>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; font-weight: normal;">
+                            <input type="checkbox" id="textUnderline" onchange="updateElement()">
+                            <u>Unterstr.</u>
+                        </label>
+                    </div>
+                </div>
+
+                <button class="danger" onclick="deleteSelected()" style="margin-top: 15px;">🗑️ Löschen</button>
+            </div>
+
+            <h3>Elemente</h3>
+            <div class="elements-list" id="elementsList"></div>
+
+            <div style="margin-top: 20px;">
+                <button class="success" onclick="exportPDF()" style="width: 100%;">📄 PDF Exportieren</button>
+            </div>
+        </div>
+
+        <div class="editor-area">
+            <div class="zoom-bar">
+                <label for="zoomSlider">Zoom:</label>
+                <input type="range" id="zoomSlider" min="25" max="200" value="75" onchange="updateZoom()">
+                <span class="zoom-value"><span id="zoomPercent">75</span>%</span>
+                <div class="zoom-buttons">
+                    <button onclick="setZoom(50)">50%</button>
+                    <button onclick="setZoom(75)">75%</button>
+                    <button onclick="setZoom(100)">100%</button>
+                </div>
+            </div>
+            <div class="canvas-container">
+                <div id="canvas"></div>
+            </div>
+            <div class="status-bar">
+                A4 Seite (210mm × 297mm) | <span id="elementCount">0 Elemente</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const MM_TO_PX = 3.78; // Konversionsfaktor mm zu px (bei 96 DPI)
+        let zoom = 0.75; // Standard-Zoom: 75%
+        let elements = [];
+        let selectedElement = null;
+        let elementIdCounter = 0;
+        let isDragging = false;
+        let isResizing = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        // Element hinzufügen
+        function addRectangle() {
+            const id = elementIdCounter++;
+            const element = {
+                id: id,
+                type: 'rectangle',
+                x: 10,
+                y: 10,
+                width: 50,
+                height: 50,
+                color: '#3498db',
+                borderWidth: 0.5,
+                text: ''
+            };
+            elements.push(element);
+            selectElement(id);
+            renderCanvas();
+        }
+
+        function addText() {
+            const id = elementIdCounter++;
+            const element = {
+                id: id,
+                type: 'text',
+                x: 10,
+                y: 10,
+                width: 100,
+                height: 15,
+                color: '#000000',
+                text: 'Neuer Text',
+                fontSize: 12,
+                fontFamily: 'Arial',
+                bold: false,
+                italic: false,
+                underline: false,
+                borderWidth: 0.5
+            };
+            elements.push(element);
+            selectElement(id);
+            renderCanvas();
+        }
+
+        function addLine() {
+            const id = elementIdCounter++;
+            const element = {
+                id: id,
+                type: 'line',
+                x: 10,
+                y: 10,
+                width: 80,
+                height: 0,
+                color: '#000000',
+                lineWidth: 0.5
+           
+            };
+            elements.push(element);
+            selectElement(id);
+            renderCanvas();
+        }
+
+        // Zoom aktualisieren
+        function updateZoom() {
+            zoom = parseInt(document.getElementById('zoomSlider').value) / 100;
+            document.getElementById('zoomPercent').textContent = document.getElementById('zoomSlider').value;
+            canvas.style.transform = 'scale(' + zoom + ')';
+            canvas.style.transformOrigin = 'top center';
+            renderCanvas();
+        }
+
+        function setZoom(percentage) {
+            document.getElementById('zoomSlider').value = percentage;
+            updateZoom();
+        }
+
+        // Canvas rendern
+        function renderCanvas() {
+            canvas.innerHTML = '';
+
+            elements.forEach(element => {
+                const div = document.createElement('div');
+                div.className = 'page-element ' + element.type;
+                if (selectedElement && selectedElement.id === element.id) {
+                    div.classList.add('selected');
+                }
+
+                const x = element.x * MM_TO_PX;
+                const y = element.y * MM_TO_PX;
+                const width = element.width * MM_TO_PX;
+                const height = element.height * MM_TO_PX;
+
+                div.style.left = x + 'px';
+                div.style.top = y + 'px';
+                div.style.width = width + 'px';
+                div.style.height = height + 'px';
+
+                if (element.type === 'rectangle') {
+                    div.style.backgroundColor = element.color;
+                    const borderWidthPx = (element.borderWidth || 0.5) * MM_TO_PX;
+                    div.style.border = borderWidthPx + 'px dashed ' + (selectedElement && selectedElement.id === element.id ? '#3498db' : 'transparent');
+                    
+                    const handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    div.appendChild(handle);
+                } else if (element.type === 'text') {
+                    div.style.color = element.color;
+                    div.style.fontSize = (element.fontSize || 12) + 'px';
+                    div.style.fontFamily = element.fontFamily || 'Arial';
+                    div.style.fontWeight = element.bold ? 'bold' : 'normal';
+                    div.style.fontStyle = element.italic ? 'italic' : 'normal';
+                    div.style.textDecoration = element.underline ? 'underline' : 'none';
+                    div.textContent = element.text;
+                    div.style.border = '2px dashed ' + (selectedElement && selectedElement.id === element.id ? '#3498db' : 'transparent');
+                } else if (element.type === 'line') {
+                    // Nutze SVG für Linien
+                    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    svg.setAttribute('width', width);
+                    svg.setAttribute('height', Math.max(height, (element.lineWidth || 0.5) * MM_TO_PX * 2));
+                    svg.setAttribute('style', 'position: absolute; left: 0; top: 0;');
+                    
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', '0');
+                    line.setAttribute('y1', (element.lineWidth || 0.5) * MM_TO_PX);
+                    line.setAttribute('x2', width);
+                    line.setAttribute('y2', (element.lineWidth || 0.5) * MM_TO_PX);
+                    line.setAttribute('stroke', element.color);
+                    line.setAttribute('stroke-width', (element.lineWidth || 0.5) * MM_TO_PX);
+                    
+                    svg.appendChild(line);
+                    div.appendChild(svg);
+                    
+                    if (selectedElement && selectedElement.id === element.id) {
+                        div.style.border = '2px dashed #3498db';
+                    }
+                    
+                    const handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    div.appendChild(handle);
+                }
+
+                div.ondragstart = (e) => e.preventDefault();
+                div.onmousedown = (e) => startDrag(e, element.id);
+
+                canvas.appendChild(div);
+            });
+
+            updateElementsList();
+            updateElementCount();
+        }
+
+        // Element auswählen
+        function selectElement(id) {
+            selectedElement = elements.find(el => el.id === id);
+            updatePropertiesPanel();
+            renderCanvas();
+        }
+
+        // Eigenschaften aktualisieren
+        function updatePropertiesPanel() {
+            const propsDiv = document.getElementById('properties');
+            if (selectedElement) {
+                propsDiv.classList.add('active');
+                document.getElementById('elementType').value = selectedElement.type;
+                document.getElementById('elementX').value = selectedElement.x;
+                document.getElementById('elementY').value = selectedElement.y;
+                document.getElementById('elementWidth').value = selectedElement.width;
+                document.getElementById('elementHeight').value = selectedElement.height;
+                document.getElementById('elementColor').value = selectedElement.color;
+                document.getElementById('borderWidth').value = selectedElement.borderWidth || 0.5;
+
+                if (selectedElement.type === 'text') {
+                    document.getElementById('textPropertyGroup').style.display = 'block';
+                    document.getElementById('fontSizeGroup').style.display = 'block';
+                    document.getElementById('fontFamilyGroup').style.display = 'block';
+                    document.getElementById('textStyleGroup').style.display = 'block';
+                    document.getElementById('lineWidthGroup').style.display = 'none';
+                    document.getElementById('elementText').value = selectedElement.text;
+                    document.getElementById('fontSize').value = selectedElement.fontSize || 12;
+                    document.getElementById('fontFamily').value = selectedElement.fontFamily || 'Arial';
+                    document.getElementById('textBold').checked = selectedElement.bold || false;
+                    document.getElementById('textItalic').checked = selectedElement.italic || false;
+                    document.getElementById('textUnderline').checked = selectedElement.underline || false;
+                } else if (selectedElement.type === 'line') {
+                    document.getElementById('textPropertyGroup').style.display = 'none';
+                    document.getElementById('fontSizeGroup').style.display = 'none';
+                    document.getElementById('fontFamilyGroup').style.display = 'none';
+                    document.getElementById('textStyleGroup').style.display = 'none';
+                    document.getElementById('lineWidthGroup').style.display = 'block';
+                    document.getElementById('lineWidth').value = selectedElement.lineWidth || 0.5;
+                } else {
+                    document.getElementById('textPropertyGroup').style.display = 'none';
+                    document.getElementById('fontSizeGroup').style.display = 'none';
+                    document.getElementById('fontFamilyGroup').style.display = 'none';
+                    document.getElementById('textStyleGroup').style.display = 'none';
+                    document.getElementById('lineWidthGroup').style.display = 'none';
+                }
+            } else {
+                propsDiv.classList.remove('active');
+            }
+        }
+
+        function updateElement() {
+            if (!selectedElement) return;
+
+            selectedElement.x = parseFloat(document.getElementById('elementX').value);
+            selectedElement.y = parseFloat(document.getElementById('elementY').value);
+            selectedElement.width = parseFloat(document.getElementById('elementWidth').value);
+            selectedElement.height = parseFloat(document.getElementById('elementHeight').value);
+            selectedElement.color = document.getElementById('elementColor').value;
+            selectedElement.borderWidth = parseFloat(document.getElementById('borderWidth').value);
+
+            if (selectedElement.type === 'text') {
+                selectedElement.text = document.getElementById('elementText').value;
+                selectedElement.fontSize = parseInt(document.getElementById('fontSize').value);
+                selectedElement.fontFamily = document.getElementById('fontFamily').value;
+                selectedElement.bold = document.getElementById('textBold').checked;
+                selectedElement.italic = document.getElementById('textItalic').checked;
+                selectedElement.underline = document.getElementById('textUnderline').checked;
+            } else if (selectedElement.type === 'line') {
+                selectedElement.lineWidth = parseFloat(document.getElementById('lineWidth').value);
+            }
+
+            renderCanvas();
+        }
+
+        // Elemente löschen
+        function deleteSelected() {
+            if (selectedElement) {
+                elements = elements.filter(el => el.id !== selectedElement.id);
+                selectedElement = null;
+                updatePropertiesPanel();
+                renderCanvas();
+            }
+        }
+
+        // Drag & Drop
+        function startDrag(e, elementId) {
+            selectElement(elementId);
+            if (!selectedElement) return;
+
+            const element = selectedElement;
+            const startX = element.x;
+            const startY = element.y;
+            const startWidth = element.width;
+            const startHeight = element.height;
+            const canvasRect = canvas.getBoundingClientRect();
+            const startMouseX = e.clientX;
+            const startMouseY = e.clientY;
+
+            // Check if resize handle
+            if (e.target.classList.contains('resize-handle')) {
+                isResizing = true;
+            } else {
+                isDragging = true;
+            }
+
+            document.onmousemove = (moveEvent) => {
+                if (isDragging) {
+                    const deltaX = moveEvent.clientX - startMouseX;
+                    const deltaY = moveEvent.clientY - startMouseY;
+
+                    const newX = startX + deltaX / (MM_TO_PX * zoom);
+                    const newY = startY + deltaY / (MM_TO_PX * zoom);
+
+                    element.x = Math.max(0, Math.min(210 - element.width, newX));
+                    element.y = Math.max(0, Math.min(297 - element.height, newY));
+
+                    updatePropertiesPanel();
+                    renderCanvas();
+                } else if (isResizing) {
+                    const deltaX = moveEvent.clientX - startMouseX;
+                    const deltaY = moveEvent.clientY - startMouseY;
+
+                    element.width = Math.max(20, startWidth + deltaX / (MM_TO_PX * zoom));
+                    element.height = Math.max(20, startHeight + deltaY / (MM_TO_PX * zoom));
+
+                    updatePropertiesPanel();
+                    renderCanvas();
+                }
+            };
+
+            document.onmouseup = () => {
+                isDragging = false;
+                isResizing = false;
+                document.onmousemove = null;
+                document.onmouseup = null;
+            };
+        }
+
+        // Elemente-Liste aktualisieren
+        function updateElementsList() {
+            const list = document.getElementById('elementsList');
+            list.innerHTML = '';
+
+            elements.forEach((element, index) => {
+                const item = document.createElement('div');
+                item.className = 'element-item';
+                if (selectedElement && selectedElement.id === element.id) {
+                    item.classList.add('selected');
+                }
+
+                let label;
+                if (element.type === 'text') {
+                    label = `📝 ${element.text.substring(0, 20)}`;
+                } else if (element.type === 'line') {
+                    label = `📏 Linie ${index + 1}`;
+                } else {
+                    label = `▭ Rechteck ${index + 1}`;
+                }
+
+                item.textContent = label;
+                item.onclick = () => selectElement(element.id);
+                list.appendChild(item);
+            });
+        }
+
+        function updateElementCount() {
+            document.getElementById('elementCount').textContent = elements.length + ' Element' + (elements.length !== 1 ? 'e' : '');
+        }
+
+        // PDF exportieren
+        function exportPDF() {
+            if (elements.length === 0) {
+                alert('Bitte füge mindestens ein Element hinzu!');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            elements.forEach(element => {
+                if (element.type === 'rectangle') {
+                    pdf.setFillColor(...hexToRgb(element.color));
+                    pdf.setDrawColor(...hexToRgb(element.color));
+                    pdf.setLineWidth(element.borderWidth || 0.5);
+                    pdf.rect(element.x, element.y, element.width, element.height, 'FD');
+                } else if (element.type === 'text') {
+                    pdf.setTextColor(...hexToRgb(element.color));
+                    pdf.setFontSize(element.fontSize || 12);
+                    
+                    // Mappe Schriftarten auf jsPDF-kompatible Schriftarten
+                    let pdfFont = 'Helvetica';
+                    const fontMap = {
+                        'Arial': 'Helvetica',
+                        'Helvetica': 'Helvetica',
+                        'Times New Roman': 'Times',
+                        'Times': 'Times',
+                        'Courier New': 'Courier',
+                        'Courier': 'Courier',
+                        'Georgia': 'Times',
+                        'Verdana': 'Helvetica',
+                        'Comic Sans MS': 'Courier'
+                    };
+                    
+                    if (fontMap[element.fontFamily]) {
+                        pdfFont = fontMap[element.fontFamily];
+                    }
+                    
+                    // Setze Font-Style
+                    let fontStyle = 'normal';
+                    if (element.bold && element.italic) fontStyle = 'bolditalic';
+                    else if (element.bold) fontStyle = 'bold';
+                    else if (element.italic) fontStyle = 'italic';
+                    
+                    pdf.setFont(pdfFont, fontStyle);
+                    let textX = element.x;
+                    let textY = element.y + element.height / 2;
+                    pdf.text(element.text, textX, textY);
+                    if (element.underline) {
+                        const textWidth = pdf.getTextWidth(element.text);
+                        pdf.line(textX, textY + 1, textX + textWidth, textY + 1);
+                    }
+                } else if (element.type === 'line') {
+                    pdf.setDrawColor(...hexToRgb(element.color));
+                    pdf.setLineWidth(element.lineWidth || 0.5);
+                    pdf.line(element.x, element.y, element.x + element.width, element.y + element.height);
+                }
+            });
+
+            pdf.save('document.pdf');
+            alert('PDF erfolgreich erstellt!');
+        }
+
+        // Hilfsfunktion: HEX zu RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : [0, 0, 0];
+        }
+
+        // Initial render
+        canvas.style.transform = 'scale(' + zoom + ')';
+        canvas.style.transformOrigin = 'top center';
+        renderCanvas();
+    </script>
+</body>
+</html>
