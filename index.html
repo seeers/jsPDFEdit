@@ -670,7 +670,7 @@
                 selectedElement.width = Math.max(0, parseFloat(document.getElementById('elementWidth').value));
                 selectedElement.height = Math.max(0, parseFloat(document.getElementById('elementHeight').value));
             } else if (selectedElement.type === 'rectangle') {
-                selectedElement.width = Math.max(, parseFloat(document.getElementById('elementWidth').value));
+                selectedElement.width = Math.max(5, parseFloat(document.getElementById('elementWidth').value));
                 selectedElement.height = Math.max(5, parseFloat(document.getElementById('elementHeight').value));
             } else if (selectedElement.type === 'text') {
                 selectedElement.width = Math.max(5, parseFloat(document.getElementById('elementWidth').value));
@@ -756,8 +756,8 @@
                     const deltaX = moveEvent.clientX - startMouseX;
                     const deltaY = moveEvent.clientY - startMouseY;
 
-                    element.width = Math.max(5, startWidth + deltaX / (MM_TO_PX * zoom));
-                    element.height = Math.max(5, startHeight + deltaY / (MM_TO_PX * zoom));
+                    element.width = Math.max(0, startWidth + deltaX / (MM_TO_PX * zoom));
+                    element.height = Math.max(0, startHeight + deltaY / (MM_TO_PX * zoom));
 
                     updatePropertiesPanel();
                     renderCanvas();
